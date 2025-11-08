@@ -15,7 +15,7 @@
 <h2>패러데이 & 렌츠 법칙 시뮬레이션</h2>
 
 <div id="controls">
-  코일 감은 수 N: <input type="number" id="coilTurns" value="10" min="1"><br><br>
+  코일의 감은 수 N: <input type="number" id="coilTurns" value="10" min="1"><br><br>
   자기장 세기 B: <input type="number" id="Bfield" value="1" step="0.1"><br><br>
   자석 속도 v: <input type="number" id="speed" value="2" step="0.1">
 </div>
@@ -137,9 +137,9 @@ function draw() {
 
     // 범례
     ctx.fillStyle = "#00f";
-    ctx.fillText("Φ", graphX + 5, GRAPH_Y_OFFSET - 5);
+    ctx.fillText("Φ 자속", graphX + 5, GRAPH_Y_OFFSET - 5);
     ctx.fillStyle = "#f00";
-    ctx.fillText("ℰ", graphX + 30, GRAPH_Y_OFFSET - 5);
+    ctx.fillText("ℰ 유도전압", graphX + 30, GRAPH_Y_OFFSET - 5);
 
     // 자속 그래프 (파랑)
     ctx.beginPath();
