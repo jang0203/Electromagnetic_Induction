@@ -27,8 +27,8 @@ const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
 
 function resizeCanvas() {
-    canvas.width = window.innerWidth * 0.9;
-    canvas.height = window.innerHeight * 0.6;
+  canvas.width = window.innerWidth * 0.9;
+  canvas.height = window.innerHeight * 0.6;
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -41,190 +41,181 @@ let electronAngle = 0;
 let fluxData = [];
 let emfData = [];
 const maxDataPoints = 500;
-const dt = 0.02; // 시간 간격
+const dt = 0.02;
 
-// 그래프 영역 정의 (시뮬레이션과 분리)
 const GRAPH_HEIGHT = 150;
-const GRAPH_Y_OFFSET = 30; // 캔버스 상단에서 그래프 시작 위치
+const GRAPH_Y_OFFSET = 30;
 
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const N = Number(document.getElementById('coilTurns').value);
-    const B = Number(document.getElementById('Bfield').value);
-    const v = Number(document.getElementById('speed').value);
-    const A = 1; // 코일 유효 면적
+  const N = Number(document.getElementById('coilTurns').value);
+  const B = Number(document.getElementById('Bfield').value);
+  const v = Number(document.getElementById('speed').value);
+  const A = 1;
 
-    // --- 시뮬레이션 영역 ---
-    const SIM_Y_OFFSET = GRAPH_Y_OFFSET + GRAPH_HEIGHT + canvas.height * 0.05;
-    const coilX = canvas.width / 2;
-    const coilY = SIM_Y_OFFSET + 100; 
-    const coilRadius = 60;
+  const SIM_Y_OFFSET = GRAPH_Y_OFFSET + GRAPH_HEIGHT + canvas.height * 0.05;
+  const coilX = canvas.width / 2;
+  const coilY = SIM_Y_OFFSET + 100;
+  const coilRadius = 60;
 
-    // 자석 위치: 1D 진동
-    const magnetAmplitude = 150;
-    const magnetX = coilX + Math.sin(t * v) * magnetAmplitude;
-    const magnetY = coilY;
+  const magnetAmplitude = 150;
+  const magnetX = coilX + Math.sin(t * v) * magnetAmplitude;
+  const magnetY = coilY;
 
-    // --- 물리량 계산 ---
-    const fluxMax = B * A;
-    const flux = fluxMax * Math.cos(t * v);
-    const dFlux = -fluxMax * v * Math.sin(t * v); 
-    const emf = -N * dFlux; 
+  // --- 물리량 계산 ---
+  const fluxMax = B * A;
+  const flux = fluxMax * Math.cos(t * v);
+  const dFlux = -fluxMax * v * Math.sin(t * v);
+  const emf = -N * dFlux;
 
-    // 데이터 저장
-    fluxData.push(flux);
-    emfData.push(emf);
-    if(fluxData.length > maxDataPoints) fluxData.shift();
-    if(emfData.length > maxDataPoints) emfData.shift();
+  // --- 데이터 업데이트 ---
+  fluxData.push(flux);
+  emfData.push(emf);
+  if (fluxData.length > maxDataPoints) fluxData.shift();
+  if (emfData.length > maxDataPoints) emfData.shift();
 
-    const grad = ctx.createRadialGradient(magnetX, magnetY, 10, magnetX, magnetY, 200);
-    grad.addColorStop(0, `rgba(0, 150, 255, ${0.4 * B})`);
-    grad.addColorStop(1, 'rgba(0, 150, 255, 0)');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(magnetX, magnetY, 200, 0, 2 * Math.PI);
-    ctx.fill();
+  // --- 자기장 구름 ---
+  const grad = ctx.createRadialGradient(magnetX, magnetY, 10, magnetX, magnetY, 200);
+  grad.addColorStop(0, `rgba(0, 150, 255, ${0.4 * B})`);
+  grad.addColorStop(1, 'rgba(0, 150, 255, 0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(magnetX, magnetY, 200, 0, 2 * Math.PI);
+  ctx.fill();
 
-    // --- 자기장 방향 화살표 ---
-    const fieldSpacing = 40;  // 화살표 간격
-    for (let x = coilX - 200; x <= coilX + 200; x += fieldSpacing) {
-        for (let y = coilY - 120; y <= coilY + 120; y += fieldSpacing) {
-          const dx = x - magnetX;
-          const dy = y - magnetY;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-      
-          if (dist < 30 || dist > 200) continue; // 너무 중심이거나 너무 멀면 생략
-      
-          // 자석의 진동 위치에 따라 방향 반전 (자기장 극성 변화)
-          const direction = Math.sign(Math.sin(t * v)) || 1;
-          
-          // 자석에서 바깥으로 향하는 방향 (단위벡터)
-          const angle = Math.atan2(dy, dx) * direction;
-      
-          const Bstrength = B * Math.exp(-dist / 100); // 거리 멀수록 약해짐
-          const length = 15 * Bstrength; // 화살표 길이 비례
-      
-          const x1 = x - Math.cos(angle) * length / 2;
-          const y1 = y - Math.sin(angle) * length / 2;
-          const x2 = x + Math.cos(angle) * length / 2;
-          const y2 = y + Math.sin(angle) * length / 2;
-      
-          // 선 그리기
-          ctx.beginPath();
-          ctx.moveTo(x1, y1);
-          ctx.lineTo(x2, y2);
-          ctx.strokeStyle = `rgba(0, 150, 255, ${0.4 * Bstrength})`;
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-      
-          // 화살표 머리 (끝부분에 작은 삼각형)
-          ctx.beginPath();
-          ctx.moveTo(x2, y2);
-          ctx.lineTo(x2 - 4 * Math.cos(angle - 0.4), y2 - 4 * Math.sin(angle - 0.4));
-          ctx.lineTo(x2 - 4 * Math.cos(angle + 0.4), y2 - 4 * Math.sin(angle + 0.4));
-          ctx.fillStyle = `rgba(0, 150, 255, ${0.5 * Bstrength})`;
-          ctx.fill();
-        }
+  // --- 자기장 방향 화살표 ---
+  const fieldSpacing = 40;
+  for (let x = coilX - 200; x <= coilX + 200; x += fieldSpacing) {
+    for (let y = coilY - 120; y <= coilY + 120; y += fieldSpacing) {
+      const dx = x - magnetX;
+      const dy = y - magnetY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 30 || dist > 200) continue;
+
+      const direction = Math.sign(Math.sin(t * v)) || 1;
+      const angle = Math.atan2(dy, dx) * direction;
+      const Bstrength = B * Math.exp(-dist / 100);
+      const length = 15 * Bstrength;
+
+      const x1 = x - Math.cos(angle) * length / 2;
+      const y1 = y - Math.sin(angle) * length / 2;
+      const x2 = x + Math.cos(angle) * length / 2;
+      const y2 = y + Math.sin(angle) * length / 2;
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.strokeStyle = (direction > 0)
+        ? `rgba(255,80,80,${0.4 * Bstrength})`
+        : `rgba(80,80,255,${0.4 * Bstrength})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - 4 * Math.cos(angle - 0.4), y2 - 4 * Math.sin(angle - 0.4));
+      ctx.lineTo(x2 - 4 * Math.cos(angle + 0.4), y2 - 4 * Math.sin(angle + 0.4));
+      ctx.fillStyle = (direction > 0)
+        ? `rgba(255,80,80,${0.5 * Bstrength})`
+        : `rgba(80,80,255,${0.5 * Bstrength})`;
+      ctx.fill();
     }
-    // --- 코일 & 자석 ---
-    const magnetWidth = 40;
-    const magnetHeight = 30;
-    ctx.fillStyle = (Math.sin(t * v) > 0) ? 'red' : 'blue';
-    ctx.fillRect(magnetX - magnetWidth/2, magnetY - magnetHeight/2, magnetWidth, magnetHeight);
-    
-    // 코일
+  }
+
+  // --- 자속선 (자기력선) ---
+  const lines = 7; // 자속선 개수
+  for (let i = -lines; i <= lines; i++) {
+    const offsetY = i * 8;
     ctx.beginPath();
-    ctx.arc(coilX, coilY, coilRadius, 0, 2*Math.PI);
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 3;
+    ctx.moveTo(magnetX, magnetY + offsetY);
+    const midX = (magnetX + coilX) / 2;
+    const curvature = (magnetX < coilX) ? -1 : 1;
+    ctx.quadraticCurveTo(midX, coilY + offsetY + curvature * 50, coilX, coilY + offsetY);
+    ctx.strokeStyle = `rgba(0,150,255,${0.3})`;
+    ctx.lineWidth = 1;
     ctx.stroke();
+  }
 
-    // 자속선 (투명도)
-    const alpha = Math.min(Math.abs(flux) / fluxMax, 1);
-    ctx.beginPath();
-    ctx.moveTo(coilX, coilY);
-    ctx.lineTo(magnetX, magnetY);
-    ctx.strokeStyle = `rgba(0,150,255,${alpha})`;
-    ctx.lineWidth = 2;
-    ctx.stroke();
+  // --- 코일 & 자석 ---
+  const magnetWidth = 40;
+  const magnetHeight = 30;
+  ctx.fillStyle = (Math.sin(t * v) > 0) ? 'red' : 'blue';
+  ctx.fillRect(magnetX - magnetWidth / 2, magnetY - magnetHeight / 2, magnetWidth, magnetHeight);
 
-    // --- 전자 애니메이션 (렌츠 법칙) ---
-    const direction = emf > 0 ? 1 : -1; 
-    const maxPossibleEmf = N * fluxMax * v;
-    const rotationSpeed = Math.min(0.2, Math.abs(emf) / maxPossibleEmf) * dt * 60;
-    electronAngle += direction * rotationSpeed;
+  ctx.beginPath();
+  ctx.arc(coilX, coilY, coilRadius, 0, 2 * Math.PI);
+  ctx.strokeStyle = "#000";
+  ctx.lineWidth = 3;
+  ctx.stroke();
 
-    const electronRadius = 8;
-    const ex = coilX + Math.cos(electronAngle) * (coilRadius - electronRadius - 2);
-    const ey = coilY + Math.sin(electronAngle) * (coilRadius - electronRadius - 2);
+  // --- 전자 (렌츠 법칙) ---
+  const direction = emf > 0 ? 1 : -1;
+  const maxPossibleEmf = N * fluxMax * v;
+  const rotationSpeed = Math.min(0.2, Math.abs(emf) / maxPossibleEmf) * dt * 60;
+  electronAngle += direction * rotationSpeed;
 
-    ctx.beginPath();
-    ctx.arc(ex, ey, electronRadius, 0, 2 * Math.PI);
-    ctx.fillStyle = "#f00"; 
-    ctx.fill();
+  const electronRadius = 8;
+  const ex = coilX + Math.cos(electronAngle) * (coilRadius - electronRadius - 2);
+  const ey = coilY + Math.sin(electronAngle) * (coilRadius - electronRadius - 2);
 
-    // --- 그래프 ---
-    const graphX = 50;
-    const graphW = canvas.width - 100;
+  ctx.beginPath();
+  ctx.arc(ex, ey, electronRadius, 0, 2 * Math.PI);
+  ctx.fillStyle = "#f00";
+  ctx.fill();
 
-    // Y축 기준선
-    ctx.beginPath();
-    ctx.moveTo(graphX, GRAPH_Y_OFFSET + GRAPH_HEIGHT/2);
-    ctx.lineTo(graphX + graphW, GRAPH_Y_OFFSET + GRAPH_HEIGHT/2);
-    ctx.strokeStyle = "#555";
-    ctx.stroke();
+  // --- 그래프 ---
+  const graphX = 50;
+  const graphW = canvas.width - 100;
+  ctx.beginPath();
+  ctx.moveTo(graphX, GRAPH_Y_OFFSET + GRAPH_HEIGHT / 2);
+  ctx.lineTo(graphX + graphW, GRAPH_Y_OFFSET + GRAPH_HEIGHT / 2);
+  ctx.strokeStyle = "#555";
+  ctx.stroke();
 
-    // Y축 눈금
-    ctx.fillStyle = "#000";
-    ctx.font = "12px Arial";
-    const maxEmfValue = N * fluxMax * v;
-    const maxVal = Math.max(fluxMax, maxEmfValue);
-    ctx.fillText(maxVal.toFixed(1), graphX - 30, GRAPH_Y_OFFSET + 5);
-    ctx.fillText("0", graphX - 20, GRAPH_Y_OFFSET + GRAPH_HEIGHT/2 + 5);
-    ctx.fillText((-maxVal).toFixed(1), graphX - 30, GRAPH_Y_OFFSET + GRAPH_HEIGHT);
+  ctx.fillStyle = "#000";
+  ctx.font = "12px Arial";
+  const maxEmfValue = N * fluxMax * v;
+  const maxVal = Math.max(fluxMax, maxEmfValue);
+  ctx.fillText(maxVal.toFixed(1), graphX - 30, GRAPH_Y_OFFSET + 5);
+  ctx.fillText("0", graphX - 20, GRAPH_Y_OFFSET + GRAPH_HEIGHT / 2 + 5);
+  ctx.fillText((-maxVal).toFixed(1), graphX - 30, GRAPH_Y_OFFSET + GRAPH_HEIGHT);
 
-    // 범례
-    ctx.fillStyle = "#00f";
-    ctx.fillText("Φ 자속", graphX + 5, GRAPH_Y_OFFSET - 5);
-    ctx.fillStyle = "#f00";
-    ctx.fillText("ℰ 유도전압", graphX + 55, GRAPH_Y_OFFSET - 5);
+  ctx.fillStyle = "#00f";
+  ctx.fillText("Φ 자속", graphX + 5, GRAPH_Y_OFFSET - 5);
+  ctx.fillStyle = "#f00";
+  ctx.fillText("ℰ 유도전압", graphX + 55, GRAPH_Y_OFFSET - 5);
 
-    // 자속 그래프 (파랑)
-    ctx.beginPath();
-    for(let i = 0; i < fluxData.length; i++){
-        const x = graphX + (i / maxDataPoints) * graphW;
-        const y = GRAPH_Y_OFFSET + GRAPH_HEIGHT/2 - (fluxData[i] / maxVal) * (GRAPH_HEIGHT/2 - 5);
-        if(i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = "#00f";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+  // --- 자속 & 유도기전력 그래프 ---
+  ctx.beginPath();
+  for (let i = 0; i < fluxData.length; i++) {
+    const x = graphX + (i / maxDataPoints) * graphW;
+    const y = GRAPH_Y_OFFSET + GRAPH_HEIGHT / 2 - (fluxData[i] / maxVal) * (GRAPH_HEIGHT / 2 - 5);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = "#00f";
+  ctx.lineWidth = 2;
+  ctx.stroke();
 
-    // 유도기전력 그래프 (빨강)
-    ctx.beginPath();
-    for(let i = 0; i < emfData.length; i++){
-        const x = graphX + (i / maxDataPoints) * graphW;
-        const y = GRAPH_Y_OFFSET + GRAPH_HEIGHT/2 - (emfData[i] / maxVal) * (GRAPH_HEIGHT/2 - 5);
-        if(i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = "#f00";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+  ctx.beginPath();
+  for (let i = 0; i < emfData.length; i++) {
+    const x = graphX + (i / maxDataPoints) * graphW;
+    const y = GRAPH_Y_OFFSET + GRAPH_HEIGHT / 2 - (emfData[i] / maxVal) * (GRAPH_HEIGHT / 2 - 5);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = "#f00";
+  ctx.lineWidth = 2;
+  ctx.stroke();
 
-    // 수치 표시
-    ctx.fillStyle = "#000";
-    ctx.fillText(`Φ: ${flux.toFixed(2)} Wb`, graphX + 5, GRAPH_Y_OFFSET + GRAPH_HEIGHT + 20);
-    ctx.fillText(`ℰ: ${emf.toFixed(2)} V`, graphX + 100, GRAPH_Y_OFFSET + GRAPH_HEIGHT + 20);
+  ctx.fillStyle = "#000";
+  ctx.fillText(`Φ: ${flux.toFixed(2)} Wb`, graphX + 5, GRAPH_Y_OFFSET + GRAPH_HEIGHT + 20);
+  ctx.fillText(`ℰ: ${emf.toFixed(2)} V`, graphX + 100, GRAPH_Y_OFFSET + GRAPH_HEIGHT + 20);
 
-    t += dt;
-    requestAnimationFrame(draw);
+  t += dt;
+  requestAnimationFrame(draw);
 }
 
 draw();
 </script>
-
 </body>
 </html>
